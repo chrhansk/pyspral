@@ -9,6 +9,11 @@ extensions = [
         "pyspral.ssids",
         sources=["src/pyspral/ssids.pyx"],
         libraries=["spral"],
+    ),
+    Extension(
+        "pyspral.lsmr",
+        sources=["src/pyspral/lsmr.pyx"],
+        libraries=["spral"],
     )
 ]
 
