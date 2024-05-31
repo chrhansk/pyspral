@@ -1,0 +1,22 @@
+[project]
+name = "pyspral"
+version = "0.1.0"
+dependencies = [
+ "scipy",
+ "numpy"
+]
+
+[options]
+package_dir = "src"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.1"
+
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "src"
+]
