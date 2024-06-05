@@ -3,7 +3,7 @@ import numpy as np
 
 import pytest
 
-from pyspral.ssids import analyze, solve, Job, PrintLevel
+from pyspral.ssids import analyze, solve, Job, PrintLevel, Ordering
 
 
 @pytest.fixture
@@ -65,9 +65,13 @@ def test_options(indef_mat):
 def test_order(indef_mat, indef_rhs):
     mat = indef_mat
 
-    order = np.arange(mat.shape[0], dtype=np.intc)
+    (_, n) = mat.shape
 
-    symbolic_factor = analyze(mat, check=True, order=order)
+    order = np.arange(start=1, stop=(n + 1), dtype=np.intc)
+
+    print(order)
+
+    symbolic_factor = analyze(mat, check=True, order=order, ordering=Ordering.UserSupplied)
     numeric_factor = symbolic_factor.factor(posdef=False)
 
     b = indef_rhs

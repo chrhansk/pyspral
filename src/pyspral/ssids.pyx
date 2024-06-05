@@ -165,7 +165,7 @@ class Ordering(Enum):
     MatchingBased = 2
 
 
-class ScalingAlgorithm(Enum):
+class Scaling(Enum):
     NoScaling = 0
     MC64 = 1
     Auction = 2
@@ -262,158 +262,86 @@ cdef class Options:
         for key, value in kwds.items():
             setattr(self, key, value)
 
-    @property
-    def array_base(self):
-        return self.options.array_base
+    property array_base:
+        def __get__(self): return self.options.array_base
+        def __set__(self, value): self.options.array_base = value
 
-    @array_base.setter
-    def array_base(self, value):
-        self.options.array_base = value
+    property print_level:
+        def __get__(self): return PrintLevel(self.options.print_level)
+        def __set__(self, value): self.options.print_level = value.value
 
-    @property
-    def print_level(self):
-        return PrintLevel(self.options.print_level)
+    property unit_diagnostics:
+        def __get__(self): return self.options.unit_diagnostics
+        def __set__(self, value): self.options.unit_diagnostics = value
 
-    @print_level.setter
-    def print_level(self, value):
-        self.options.print_level = value.value
+    property unit_error:
+        def __get__(self): return self.options.unit_error
+        def __set__(self, value): self.options.unit_error = value
 
-    @property
-    def unit_diagnostics(self):
-        return self.options.unit_diagnostics
+    property unit_warning:
+        def __get__(self): return self.options.unit_warning
+        def __set__(self, value): self.options.unit_warning = value
 
-    @unit_diagnostics.setter
-    def unit_diagnostics(self, value):
-        self.options.unit_diagnostics = value
+    property ordering:
+        def __get__(self): return Ordering(self.options.ordering)
+        def __set__(self, value): self.options.ordering = value.value
 
-    @property
-    def unit_error(self):
-        return self.options.unit_error
+    property nemin:
+        def __get__(self): return self.options.nemin
+        def __set__(self, value): self.options.nemin = value
 
-    @unit_error.setter
-    def unit_error(self, value):
-        self.options.unit_error = value
+    property ignore_numa:
+        def __get__(self): return self.options.ignore_numa
+        def __set__(self, value): self.options.ignore_numa = value
 
-    @property
-    def unit_warning(self):
-        return self.options.unit_warning
+    property use_gpu:
+        def __get__(self): return self.options.use_gpu
+        def __set__(self, value): self.options.use_gpu = value
 
-    @unit_warning.setter
-    def unit_warning(self, value):
-        self.options.unit_warning = value
+    property min_gpu_work:
+        def __get__(self): return self.options.min_gpu_work
+        def __set__(self, value): self.options.min_gpu_work = value
 
-    @property
-    def ordering(self):
-        return Ordering(self.options.ordering)
+    property max_load_imbalance:
+        def __get__(self): return self.options.max_load_imbalance
+        def __set__(self, value): self.options.max_load_imbalance = value
 
-    @ordering.setter
-    def ordering(self, value):
-        self.options.ordering = value.value
-
-    @property
-    def nemin(self):
-        return self.options.nemin
-
-    @nemin.setter
-    def nemin(self, value):
-        self.options.nemin = value
-
-    @property
-    def ignore_numa(self):
-        return self.options.ignore_numa
-
-    @ignore_numa.setter
-    def ignore_numa(self, value):
-        self.options.ignore_numa = value
-
-    @property
-    def use_gpu(self):
-        return self.options.use_gpu
-
-    @use_gpu.setter
-    def use_gpu(self, value):
-        self.options.use_gpu = value
-
-    @property
-    def min_gpu_work(self):
-        return self.options.min_gpu_work
-
-    @min_gpu_work.setter
-    def min_gpu_work(self, value):
-        self.options.min_gpu_work = value
-
-    @property
-    def max_load_inbalance(self):
-        return self.options.max_load_inbalance
-
-    @max_load_inbalance.setter
-    def max_load_inbalance(self, value):
-        self.options.max_load_inbalance = value
-
-    @property
-    def gpu_perf_coeff(self):
-        return self.options.gpu_perf_coeff
-
-    @gpu_perf_coeff.setter
-    def gpu_perf_coeff(self, value):
-        self.options.gpu_perf_coeff = value
+    property gpu_perf_coeff:
+        def __get__(self): return self.options.gpu_perf_coeff
+        def __set__(self, value): self.options.gpu_perf_coeff = value
 
     @property
     def scaling(self):
         scaling = min(max(self.options.scaling, 0), 4)
-        return ScalingAlgorithm(scaling)
+        return Scaling(scaling)
 
     @scaling.setter
     def scaling(self, value):
         self.options.scaling = value.value
 
-    @property
-    def small_subtree_threshold(self):
-        return self.options.small_subtree_threshold
+    property small_subtree_threshold:
+        def __get__(self): return self.options.small_subtree_threshold
+        def __set__(self, value): self.options.small_subtree_threshold = value
 
-    @small_subtree_threshold.setter
-    def small_subtree_threshold(self, value):
-        self.options.small_subtree_threshold = value
+    property cpu_block_size:
+        def __get__(self): return self.options.cpu_block_size
+        def __set__(self, value): self.options.cpu_block_size = value
 
-    @property
-    def cpu_block_size(self):
-        return self.options.cpu_block_size
+    property action:
+        def __get__(self): return self.options.action
+        def __set__(self, value): self.options.action = value
 
-    @cpu_block_size.setter
-    def cpu_block_size(self, value):
-        self.options.cpu_block_size = value
+    property pivot_method:
+        def __get__(self): return PivotMethod(self.options.pivot_method)
+        def __set__(self, value): self.options.pivot_method = value.value
 
-    @property
-    def action(self):
-        return self.options.action
+    property small:
+        def __get__(self): return self.options.small
+        def __set__(self, value): self.options.small = value
 
-    @action.setter
-    def action(self, value):
-        self.options.action = value
-
-    @property
-    def pivot_method(self):
-        return PivotMethod(self.options.pivot_method)
-
-    @pivot_method.setter
-    def pivot_method(self, value):
-        self.options.pivot_method = value.value
-
-    @property
-    def small(self):
-        return self.options.small
-
-    @small.setter
-    def small(self, value):
-        self.options.small = value
-
-    @property
-    def u(self):
-        return self.options.u
-
-    @u.setter
-    def u(self, value):
-        self.options.u = value
+    property u:
+        def __get__(self): return self.options.u
+        def __set__(self, value): self.options.u = value
 
 
 cdef class _CSCMatrix:
