@@ -3,7 +3,7 @@ import numpy as np
 
 import pytest
 
-from pyspral.ssids import analyze, Job
+from pyspral.ssids import analyze, solve, Job, PrintLevel
 
 
 @pytest.fixture
@@ -25,12 +25,11 @@ def indef_rhs():
 
 def test_solve_indef(indef_mat, indef_rhs):
     mat = indef_mat
-    rhs = indef_rhs
 
     symbolic_factor = analyze(mat, check=True)
     numeric_factor = symbolic_factor.factor(posdef=False)
 
-    b = np.array([4.0, 17.0, 19.0, 2.0, 12.0])
+    b = indef_rhs
     b_rhs = np.copy(b)
 
     sol = numeric_factor.solve(b_rhs, inplace=True)
@@ -42,6 +41,43 @@ def test_solve_indef(indef_mat, indef_rhs):
 
     assert (b == b_rhs).all()
     assert np.allclose(mat.dot(sol) - b, 0.)
+
+
+def test_scale(indef_mat, indef_rhs):
+    mat = indef_mat
+    scale = np.array([1., 2., 1., 2., 1.], dtype=float)
+
+    symbolic_factor = analyze(mat, check=True)
+    numeric_factor = symbolic_factor.factor(posdef=False, scale=scale)
+
+    b = indef_rhs
+    x = numeric_factor.solve(b, inplace=False)
+    assert np.allclose(mat.dot(x) - b, 0.)
+
+
+def test_options(indef_mat):
+    mat = indef_mat
+    analyze(mat,
+            check=True,
+            print_level=PrintLevel.BasicDiagnostic)
+
+
+def test_order(indef_mat, indef_rhs):
+    mat = indef_mat
+
+    order = np.arange(mat.shape[0], dtype=np.intc)
+
+    symbolic_factor = analyze(mat, check=True, order=order)
+    numeric_factor = symbolic_factor.factor(posdef=False)
+
+    b = indef_rhs
+    x = numeric_factor.solve(b, inplace=False)
+    assert np.allclose(mat.dot(x) - b, 0.)
+
+
+def test_solve(indef_mat, indef_rhs):
+    sol = solve(indef_mat, indef_rhs, posdef=False)
+    assert np.allclose(indef_mat.dot(sol) - indef_rhs, 0.)
 
 
 def test_solve_indef_multi(indef_mat):
@@ -82,7 +118,6 @@ def test_solve_indef_multi(indef_mat):
 
 def test_enquire(indef_mat):
     mat = indef_mat
-    rhs = indef_rhs
 
     symbolic_factor = analyze(mat, check=True)
     numeric_factor = symbolic_factor.factor(posdef=False)

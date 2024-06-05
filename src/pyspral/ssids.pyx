@@ -166,10 +166,10 @@ class Ordering(Enum):
 
 
 class ScalingAlgorithm(Enum):
-    ExplicitScaling = 0
-    HungarianMethod = 1
-    AuctionAlgorithm = 2
-    MatchingBased = 3
+    NoScaling = 0
+    MC64 = 1
+    Auction = 2
+    MC77 = 3
     NormEquilibration = 4
 
 
@@ -180,7 +180,7 @@ class PrintLevel(Enum):
     DetailedDiagnostic = 2
 
 
-cdef class Inform:
+cdef class _Inform:
     cdef spral_ssids_inform inform
 
     @property
@@ -255,9 +255,8 @@ cdef class Inform:
 cdef class Options:
     cdef spral_ssids_options options
 
-    def __cinit__(self):
+    def __cinit__(self, **kwds):
         spral_ssids_default_options(&self.options)
-        self.options.array_base = 1
 
     def __init__(self, **kwds):
         for key, value in kwds.items():
@@ -417,7 +416,10 @@ cdef class Options:
         self.options.u = value
 
 
-cdef class CSCMatrix:
+cdef class _CSCMatrix:
+    """
+    CSC matrix as specified by SPRAL (one-indexed, lower triangular part only)
+    """
     cdef const int[:] rows
     cdef const int64_t[:] cols
     cdef const double[:] data
@@ -457,7 +459,7 @@ cdef class CSCMatrix:
 
 cdef class SymbolicFactor:
     cdef void *akeep
-    cdef CSCMatrix csc_mat
+    cdef _CSCMatrix csc_mat
     cdef Options options
 
     def __cinit__(self):
@@ -468,15 +470,24 @@ cdef class SymbolicFactor:
     def __dealloc__(self):
         spral_ssids_free_akeep(&self.akeep)
 
-    def factor(self, bint posdef):
+    def factor(self, bint posdef, double[:] scale=None):
         cdef void* fkeep = NULL
+        cdef double* scale_ptr = NULL
         cdef NumericFactor numeric_factor = NumericFactor()
+
+        if scale is not None:
+            if self.options.scaling != Scaling.NoScaling:
+                raise ValueError("User-provided scaling with automatic scaling option")
+            assert scale.ndim == 1
+            (_, n) = self.csc_mat.shape
+            assert scale.size == n
+            scale_ptr = &scale[0]
 
         spral_ssids_factor(posdef,
                            &self.csc_mat.cols[0],
                            &self.csc_mat.rows[0],
                            &self.csc_mat.data[0],
-                           NULL,
+                           scale_ptr,
                            self.akeep,
                            &fkeep,
                            &self.options.options,
@@ -512,15 +523,15 @@ class Job(Enum):
 
 
 cdef class NumericFactor:
-    cdef CSCMatrix csc_mat
+    cdef _CSCMatrix csc_mat
     cdef SymbolicFactor symbolic_factor
     cdef bint posdef
     cdef void *fkeep
-    cdef Inform _inform
+    cdef _Inform _inform
 
     def __cinit__(self):
         self.fkeep = NULL
-        self._inform = Inform()
+        self._inform = _Inform()
 
     def __dealloc__(self):
         spral_ssids_free_fkeep(&self.fkeep)
@@ -635,6 +646,21 @@ cdef class NumericFactor:
 
         return piv_order_arr, d_arr
 
+    def alter(self, double[:, ::1] d):
+        (_, n) = self.csc_mat.shape
+
+        if (d.shape[0] != n) or (d.shape[1] != 2):
+            raise ValueError("Invalid shape of d")
+
+        spral_ssids_alter(&d[0, 0],
+                          self.symbolic_factor.akeep,
+                          self.fkeep,
+                          &self.symbolic_factor.options.options,
+                          &self._inform.inform)
+
+        if self._inform.inform.flag < 0:
+            raise SSIDSError(self._inform.inform.flag)
+
     def D(self):
         if self.posdef:
             d = self._enquire_posdef()
@@ -658,13 +684,17 @@ cdef class NumericFactor:
             return self._enquire_indef()
 
 
-cpdef analyze(mat, Options options=None, check=False):
+cdef _analyze(mat, Options options, check=False, int[:] order=None):
     cdef void* akeep = NULL
     cdef void* fkeep = NULL
+    cdef int* order_ptr = NULL
     cdef const spral_ssids_options* _options
-    cdef CSCMatrix csc_mat
+    cdef _CSCMatrix csc_mat
     cdef SymbolicFactor symbolic_factor = SymbolicFactor()
     cdef spral_ssids_inform inform
+
+    assert options is not None
+    options.array_base = 1
 
     if not sp.sparse.issparse(mat):
         raise ValueError("Input matrix must be a sparse matrix")
@@ -675,19 +705,25 @@ cpdef analyze(mat, Options options=None, check=False):
 
     (m, n) = mat.shape
 
-    if options is None:
-        options = Options()
-
     _options = &options.options
-    csc_mat = CSCMatrix(mat)
+    csc_mat = _CSCMatrix(mat)
 
     if m != n:
         raise ValueError("Input matrix must be square")
 
+    if order is not None:
+        if options.ordering != Ordering.UserSupplied:
+            raise ValueError("User-provided ordering with automatic ordering option")
+        assert order.ndim == 1
+        assert order.size == n
+        order_ptr = &order[0]
+
     if mat.dtype != float:
         raise ValueError("Input matrix must be of type float")
 
-    spral_ssids_analyse(check, n, NULL,
+    spral_ssids_analyse(check,
+                        n,
+                        order_ptr,
                         &csc_mat.cols[0],
                         &csc_mat.rows[0],
                         &csc_mat.data[0],
@@ -704,3 +740,14 @@ cpdef analyze(mat, Options options=None, check=False):
     symbolic_factor.options = options
 
     return symbolic_factor
+
+
+def analyze(mat, check=False, int[:] order=None, **options):
+    cdef Options _options = Options(**options)
+    return _analyze(mat, options=_options, check=check, order=order)
+
+
+def solve(mat, rhs, posdef, check=False, inplace=False, **options):
+    symbolic_factor = analyze(mat, check=check, **options)
+    numeric_factor = symbolic_factor.factor(posdef=posdef)
+    return numeric_factor.solve(rhs, inplace=inplace)
