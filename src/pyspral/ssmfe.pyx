@@ -2,6 +2,7 @@
 
 from enum import Enum
 import warnings
+from typing import Optional
 
 cimport numpy as np
 
@@ -171,9 +172,102 @@ class Flag(Enum):
     OUT_OF_STORAGE_FOR_EIGENPAIRS = 3
 
 
-cpdef solve_standard(A: sp.sparse.linalg.LinearOperator,
+class Result:
+    def __init__(self, lamb, x, **props):
+        self.lamb = lamb
+        self.x = x
+        self.props = props
+
+    def __getattr__(self, name):
+        return self.props[name]
+
+
+class PrintLevel(Enum):
+    NoPrinting = -1
+    ErrorWarning = 0
+    BasicDiagnostic = 1
+    DetailedDiagnostic = 2
+
+
+cdef class Options:
+    cdef spral_ssmfe_options options
+
+    def __cinit__(self, **options):
+        spral_ssmfe_default_options(&self.options)
+
+    def __init__(self, **options):
+        for key, value in options.items():
+            setattr(self, key, value)
+
+    property array_base:
+        def __set__(self, value): self.options.array_base = value
+
+    property print_level:
+        def __set__(self, value): self.options.print_level = value.value
+
+    property unit_error:
+        def __set__(self, value): self.options.unit_error = value
+
+    property unit_warning:
+        def __set__(self, value): self.options.unit_warning = value
+
+    property unit_diagnostic:
+        def __set__(self, value): self.options.unit_diagnostic = value
+
+    property max_iterations:
+        def __set__(self, value): self.options.max_iterations = value
+
+    property user_x:
+        def __set__(self, value): self.options.user_x = value
+
+    property err_est:
+        def __set__(self, value): self.options.err_est = value
+
+    property abs_tol_lambda:
+        def __set__(self, value): self.options.abs_tol_lambda = value
+
+    property rel_tol_lambda:
+        def __set__(self, value): self.options.rel_tol_lambda = value
+
+    property abs_tol_residual:
+        def __set__(self, value): self.options.abs_tol_residual = value
+
+    property rel_tol_residual:
+        def __set__(self, value): self.options.rel_tol_residual = value
+
+    property tol_x:
+        def __set__(self, value): self.options.tol_x = value
+
+    property left_gap:
+        def __set__(self, value): self.options.left_gap = value
+
+    property right_gap:
+        def __set__(self, value): self.options.right_gap = value
+
+    property extra_left:
+        def __set__(self, value): self.options.extra_left = value
+
+    property extra_right:
+        def __set__(self, value): self.options.extra_right = value
+
+    property max_left:
+        def __set__(self, value): self.options.max_left = value
+
+    property max_right:
+        def __set__(self, value): self.options.max_right = value
+
+    property minAprod:
+        def __set__(self, value): self.options.minAprod = value
+
+    property minBprod:
+        def __set__(self, value): self.options.minBprod = value
+
+
+cdef _solve_standard(A: sp.sparse.linalg.LinearOperator,
                      left: int,
                      mep: int,
+                     Options options,
+                     P: Optional[sp.sparse.linalg.LinearOperator] = None,
                      x0: double[:,::1]=None):
     cdef spral_ssmfe_inform inform
     cdef void* keep = NULL
@@ -185,11 +279,8 @@ cpdef solve_standard(A: sp.sparse.linalg.LinearOperator,
     cdef double[:] lamb
     cdef double[:, ::1] x
     cdef spral_ssmfe_rcid rci
-    cdef spral_ssmfe_options options
 
     assert mep >= left
-
-    spral_ssmfe_default_options(&options)
 
     rci.job = 0
 
@@ -220,11 +311,8 @@ cpdef solve_standard(A: sp.sparse.linalg.LinearOperator,
                                         &x[0, 0],
                                         ldx,
                                         &keep,
-                                        &options,
+                                        &options.options,
                                         &inform)
-
-            print("Iteration {0}, job = {1}".format(inform.iteration,
-                                                      rci.job))
 
             if rci.job == -3:
                 # Fatal error
@@ -233,7 +321,6 @@ cpdef solve_standard(A: sp.sparse.linalg.LinearOperator,
                 # Error, restart?
                 raise ValueError("Error occurred during computation")
             elif rci.job == -1:
-                print("Computation complete")
                 # Computation complete
                 break
             elif rci.job == 1:
@@ -245,7 +332,11 @@ cpdef solve_standard(A: sp.sparse.linalg.LinearOperator,
                 # Apply precond Y = TX
                 xv = np.asarray(<double[:rci.nx, :n]> rci.x)
                 yv = np.asarray(<double[:rci.nx, :n]> rci.y)
-                yv[:] = xv
+
+                if P is None:
+                    yv[:] = xv
+                else:
+                    yv[:] = (P @ xv.T).T
                 continue
             else:
                 raise ValueError("Invalid job")
@@ -254,17 +345,33 @@ cpdef solve_standard(A: sp.sparse.linalg.LinearOperator,
 
     num_eigenpairs = inform.left
 
-    print("{0} eigenpairs converged in {1} iterations".format(inform.left, inform.iteration));
-    # print("Flag: {0}".format(Flag(inform.flag)))
+    props = {
+        'iteration': inform.iteration,
+        'next_left': inform.next_left,
+    }
 
     if num_eigenpairs > 0:
-        return np.asarray(lamb[:num_eigenpairs]), np.asarray(x[:num_eigenpairs, :]).T
+        lambv = np.asarray(lamb[:num_eigenpairs])
+        xv = np.asarray(x[:num_eigenpairs, :]).T
+    else:
+        lambv = np.empty(shape=(0,), dtype=np.float64)
+        xv = np.empty(shape=(n, 0), dtype=np.float64)
 
-    return None
+    return Result(lambv, xv, **props)
+
+
+def solve_standard(A: sp.sparse.linalg.LinearOperator,
+                   left: int,
+                   mep: int,
+                   P: Optional[sp.sparse.linalg.LinearOperator] = None,
+                   x0: double[:,::1]=None,
+                   **options):
+    cdef Options opts = Options(**options)
+    return _solve_standard(A, left, mep, opts, P, x0)
 
 
 cpdef solve_generalized():
-    pass
+    raise NotImplementedError()
 
 cpdef solve_buckling():
-    pass
+    raise NotImplementedError()
