@@ -40,5 +40,8 @@ jobs:
       run: python -m build --sdist
     - name: Publish
       run: |
-        poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
-        poetry publish
+        pip install twine
+        twine upload dist/*
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
