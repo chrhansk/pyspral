@@ -33,7 +33,7 @@ jobs:
         sudo meson install -C build
     - name: Install additional dependencies
       run: |
-        pip install cython scipy numpy pytest
+        pip install cython scipy numpy pytest setuptools
     - name: Build extension
       run: |
         python setup.py build_ext --inplace
