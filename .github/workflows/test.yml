@@ -6,8 +6,6 @@ on:
   - workflow_call
 
 jobs:
-  install-spral:
-    uses: ./.github/workflows/spral.yml
   test:
     runs-on: ubuntu-latest
     strategy:

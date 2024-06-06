@@ -13,27 +13,31 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment:
+      name: PyPI
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: "3.12"
     - name: Install poetry
       uses: abatilo/actions-poetry@v2
-    - name: Setup a local virtual environment (if no poetry.toml file)
+    - name: Install dependencies
       run: |
-        poetry config virtualenvs.create true --local
-        poetry config virtualenvs.in-project true --local
-    - uses: actions/cache@v3
-      name: Define a cache for the virtual environment based on the dependencies lock file
-      with:
-        path: ./.venv
-        key: venv-${{ hashFiles('poetry.lock') }}
-    - name: Install the project dependencies
-      run: poetry install
+        sudo apt-get update
+        sudo apt-get -y install git gfortran libopenblas-dev libmetis-dev ninja-build
+    - name: Install spral
+      run: |
+        pip install meson
+        git clone --depth=1 https://github.com/ralna/spral.git ./.spral_checkout
+        cd ./.spral_checkout
+        meson setup -Dprefix=/usr -Dtests=false -Dmodules=false -Dexamples=false build
+        meson compile -C build
+        sudo pip install meson
+        sudo meson install -C build
     - name: Build
-      run: poetry build
+      run: python -m build --sdist
     - name: Publish
       run: |
         poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
