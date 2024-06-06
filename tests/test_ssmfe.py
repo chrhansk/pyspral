@@ -126,8 +126,6 @@ def test_solve_precond():
                             mep,
                             P=P)
 
-    import pdb; pdb.set_trace()
-
     x = result.x
     lamb = result.lamb
     neig = x.shape[1]
