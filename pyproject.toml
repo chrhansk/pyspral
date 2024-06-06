@@ -9,6 +9,9 @@ dependencies = [
 [options]
 package_dir = "src"
 
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [build-system]
 requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"

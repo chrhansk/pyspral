@@ -1,0 +1,25 @@
+name: Install spral
+
+on:
+  - workflow_call
+
+jobs:
+  install:
+    steps:
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get -y python3-pip install git gfortran libopenblas-dev libmetis-dev ninja-build
+        pip install meson
+    - name: Checkout
+      run: |
+        git clone --depth=1 https://github.com/ralna/spral.git ./.spral_checkout
+    - name: Build
+      run: |
+        cd ./.spral_checkout
+        meson setup -Dprefix=/usr -Dtests=false -Dmodules=false -Dexamples=false build
+        meson compile -C build
+    - name: Install
+      run: |
+        sudo pip install meson
+        sudo meson install -C build
