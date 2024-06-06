@@ -1,13 +1,23 @@
 [project]
 name = "pyspral"
-version = "0.1.0"
+version = "0.1.1"
+authors = [
+  {name = "Christoph Hansknecht", email = "christoph.hansknecht@tu-clausthal.de"}
+]
+description = "Python bindings to the Sparse Parallel Robust Algorithms Library"
+readme = "README.md"
+license = {file = "LICENSE"}
 dependencies = [
- "scipy",
- "numpy"
+  "scipy",
+  "numpy"
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research"
 ]
 
-[options]
-package_dir = "src"
+[project.urls]
+Repository = "https://github.com/chrhansk/pyspral"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -17,6 +27,4 @@ requires = ["setuptools", "setuptools-scm", "cython", "oldest-supported-numpy"]
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
-pythonpath = [
-  "src"
-]
+pythonpath = ["src"]
