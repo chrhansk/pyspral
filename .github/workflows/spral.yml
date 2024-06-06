@@ -5,6 +5,7 @@ on:
 
 jobs:
   install:
+    runs-on: ubuntu-latest
     steps:
     - name: Install dependencies
       run: |
