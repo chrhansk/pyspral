@@ -1,0 +1,45 @@
+name: test
+run-name: Run unit tests
+
+on:
+  - pull_request
+  - workflow_call
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install git gfortran libopenblas-dev libmetis-dev ninja-build
+    - name: Install spral
+      run: |
+        pip install meson
+        git clone --depth=1 https://github.com/ralna/spral.git ./.spral_checkout
+        cd ./.spral_checkout
+        meson setup -Dprefix=/usr -Dtests=false -Dmodules=false -Dexamples=false build
+        meson compile -C build
+        sudo pip install meson
+        sudo meson install -C build
+    - name: Install additional dependencies
+      run: |
+        pip install cython scipy numpy pytest setuptools
+    - name: Build extension
+      run: |
+        python setup.py build_ext --inplace
+    - name: Test with pytest
+      run: |
+        pytest -v
+      env:
+        OMP_PROC_BIND: true
+        OMP_CANCELLATION: true

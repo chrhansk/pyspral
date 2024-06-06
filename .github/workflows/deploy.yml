@@ -1,0 +1,44 @@
+name: Python deployment
+
+on:
+  push:
+    branches: [ "main" ]
+
+  workflow_run:
+    workflows: ["Python tests"]
+    branches: [main]
+    types:
+      - completed
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: PyPI
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+    - name: Install poetry
+      uses: abatilo/actions-poetry@v2
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install git gfortran libopenblas-dev libmetis-dev ninja-build
+    - name: Install spral
+      run: |
+        pip install meson
+        git clone --depth=1 https://github.com/ralna/spral.git ./.spral_checkout
+        cd ./.spral_checkout
+        meson setup -Dprefix=/usr -Dtests=false -Dmodules=false -Dexamples=false build
+        meson compile -C build
+        sudo pip install meson
+        sudo meson install -C build
+    - name: Build
+      run: python -m build --sdist
+    - name: Publish
+      run: |
+        poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+        poetry publish

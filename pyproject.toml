@@ -9,11 +9,11 @@ dependencies = [
 [options]
 package_dir = "src"
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.2.1"
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools", "setuptools-scm", "cython", "oldest-supported-numpy"]
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
