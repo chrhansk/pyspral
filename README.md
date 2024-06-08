@@ -13,7 +13,7 @@
 So far, the following packages are supported:
 
 - `RANDOM_MATRIX`: No
-- `SCALING`: No
+- `SCALING`: Yes
 - `SSIDS`: Yes
 - `SSMFE`: Partial (computation of simple eigenvalues without shifting)
 - `LSMR`: Yes
