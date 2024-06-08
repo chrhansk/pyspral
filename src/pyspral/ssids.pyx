@@ -10,6 +10,9 @@ import warnings
 import numpy as np
 import scipy as sp
 
+from .csc cimport _CSCMatrix
+from .csc import _CSCMatrix
+
 
 class EfficiencyWarning:
     pass
@@ -61,15 +64,15 @@ cdef extern from "spral.h":
 
     void spral_ssids_default_options(spral_ssids_options *options)
 
-    void spral_ssids_analyse(bint check, int n, int *order, const int64_t *ptr,
-                             const int *row, const double *val, void **akeep,
-                             const spral_ssids_options *options,
-                             spral_ssids_inform *inform)
+    void spral_ssids_analyse_ptr32(bint check, int n, int *order, const int *ptr,
+                                   const int *row, const double *val, void **akeep,
+                                   const spral_ssids_options *options,
+                                   spral_ssids_inform *inform)
 
-    void spral_ssids_factor(bint posdef, const int64_t *ptr, const int *row,
-                            const double *val, double *scale, void *akeep, void **fkeep,
-                            const spral_ssids_options *options,
-                            spral_ssids_inform *inform)
+    void spral_ssids_factor_ptr32(bint posdef, const int *ptr, const int *row,
+                                  const double *val, double *scale, void *akeep, void **fkeep,
+                                  const spral_ssids_options *options,
+                                  spral_ssids_inform *inform)
 
     void spral_ssids_solve(int job, int nrhs, double *x, int ldx, void *akeep,
                            void *fkeep, const spral_ssids_options *options,
@@ -128,29 +131,6 @@ ErrorFlags = {
     8: "Matching-based scaling found as side-effect of matching-based ordering ignored (consider setting options%scaling=3).",
     50: "OpenMP processor binding is disabled. Consider setting the environment variable OMP_PROC_BIND=true (this may affect performance on NUMA systems)."
 }
-
-
-def iter_spmatrix(matrix):
-    if sp.sparse.isspmatrix_coo(matrix):
-        for r, c, m in zip(matrix.row, matrix.col, matrix.data):
-            yield r, c, m
-
-    elif sp.sparse.isspmatrix_csc(matrix):
-        for c in range(matrix.shape[1]):
-            for ind in range(matrix.indptr[c], matrix.indptr[c+1]):
-                yield matrix.indices[ind], c, matrix.data[ind]
-
-    elif sp.sparse.isspmatrix_csr(matrix):
-        for r in range(matrix.shape[0]):
-            for ind in range(matrix.indptr[r], matrix.indptr[r+1]):
-                yield r, matrix.indices[ind], matrix.data[ind]
-
-    elif sp.sparse.isspmatrix_lil(matrix):
-        for r in range(matrix.shape[0]):
-            for c, d in zip(matrix.rows[r], matrix.data[r]):
-                yield r, c, d
-    else:
-        raise NotImplementedError("Invalid matrix format")
 
 
 class PivotMethod(Enum):
@@ -344,47 +324,6 @@ cdef class Options:
         def __set__(self, value): self.options.u = value
 
 
-cdef class _CSCMatrix:
-    """
-    CSC matrix as specified by SPRAL (one-indexed, lower triangular part only)
-    """
-    cdef const int[:] rows
-    cdef const int64_t[:] cols
-    cdef const double[:] data
-    cdef object shape
-
-    def __cinit__(self, mat):
-        (m, n) = mat.shape
-
-        nnz = mat.getnnz()
-
-        row_entries = [np.array([1], dtype=np.intc)] + [list() for _ in range(m)]
-        data_entries = [list() for _ in range(m)]
-
-        for r, c, v in iter_spmatrix(mat):
-            if r < c:
-                continue
-
-            row_entries[c + 1].append(r + 1)
-            data_entries[c].append(v)
-
-        for c in range(m):
-            row_entries[c + 1] = np.array(row_entries[c + 1],
-                                          dtype=np.intc)
-
-            data_entries[c] = np.array(data_entries[c],
-                                       dtype=np.double)
-
-            perm = np.argsort(row_entries[c + 1])
-            row_entries[c + 1] = row_entries[c + 1][perm]
-            data_entries[c] = data_entries[c][perm]
-
-        self.rows = np.concatenate(row_entries[1:])
-        self.cols = np.cumsum([row.size for row in row_entries], dtype=np.int64)
-        self.data = np.concatenate(data_entries)
-        self.shape = mat.shape
-
-
 cdef class SymbolicFactor:
     cdef void *akeep
     cdef _CSCMatrix csc_mat
@@ -411,15 +350,15 @@ cdef class SymbolicFactor:
             assert scale.size == n
             scale_ptr = &scale[0]
 
-        spral_ssids_factor(posdef,
-                           &self.csc_mat.cols[0],
-                           &self.csc_mat.rows[0],
-                           &self.csc_mat.data[0],
-                           scale_ptr,
-                           self.akeep,
-                           &fkeep,
-                           &self.options.options,
-                           &numeric_factor._inform.inform)
+        spral_ssids_factor_ptr32(posdef,
+                                 &self.csc_mat.cols[0],
+                                 &self.csc_mat.rows[0],
+                                 &self.csc_mat.data[0],
+                                 scale_ptr,
+                                 self.akeep,
+                                 &fkeep,
+                                 &self.options.options,
+                                 &numeric_factor._inform.inform)
 
         if numeric_factor._inform.inform.flag < 0:
             spral_ssids_free_fkeep(&fkeep)
@@ -634,7 +573,7 @@ cdef _analyze(mat, Options options, check=False, int[:] order=None):
     (m, n) = mat.shape
 
     _options = &options.options
-    csc_mat = _CSCMatrix(mat)
+    csc_mat = _CSCMatrix(mat, symmetric=True)
 
     if m != n:
         raise ValueError("Input matrix must be square")
@@ -649,15 +588,15 @@ cdef _analyze(mat, Options options, check=False, int[:] order=None):
     if mat.dtype != float:
         raise ValueError("Input matrix must be of type float")
 
-    spral_ssids_analyse(check,
-                        n,
-                        order_ptr,
-                        &csc_mat.cols[0],
-                        &csc_mat.rows[0],
-                        &csc_mat.data[0],
-                        &akeep,
-                        _options,
-                        &inform)
+    spral_ssids_analyse_ptr32(check,
+                              n,
+                              order_ptr,
+                              &csc_mat.cols[0],
+                              &csc_mat.rows[0],
+                              &csc_mat.data[0],
+                              &akeep,
+                              _options,
+                              &inform)
 
     if inform.flag < 0:
         spral_ssids_free(&akeep, &fkeep)

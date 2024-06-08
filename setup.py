@@ -6,7 +6,7 @@ from Cython.Build import cythonize
 import numpy as np
 
 
-modules = ["ssids", "lsmr", "ssmfe"]
+modules = ["csc", "ssids", "lsmr", "ssmfe"]
 
 
 extensions = [
