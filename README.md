@@ -14,6 +14,7 @@ So far, the following packages are supported:
 
 - `RANDOM_MATRIX`: No
 - `SCALING`: Yes
+- `RUTHERFORD-BOEING`: Yes
 - `SSIDS`: Yes
 - `SSMFE`: Partial (computation of simple eigenvalues without shifting)
 - `LSMR`: Yes
