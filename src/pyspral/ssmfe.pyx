@@ -370,8 +370,119 @@ def solve_standard(A: sp.sparse.linalg.LinearOperator,
     return _solve_standard(A, left, mep, opts, P, x0)
 
 
-cpdef solve_generalized():
-    raise NotImplementedError()
+cdef _solve_generalized(A: sp.sparse.linalg.LinearOperator,
+                        B: sp.sparse.linalg.LinearOperator,
+                        left: int,
+                        mep: int,
+                        Options options,
+                        P: Optional[sp.sparse.linalg.LinearOperator] = None,
+                        x0: double[:,::1]=None):
+    cdef spral_ssmfe_inform inform
+    cdef void* keep = NULL
+
+    cdef int _left = left
+    cdef int _mep = mep
+    cdef int n
+    cdef int ldx
+    cdef double[:] lamb
+    cdef double[:, ::1] x
+    cdef spral_ssmfe_rcid rci
+
+    assert mep >= left
+
+    rci.job = 0
+
+    (m, n) = A.shape
+
+    if m != n:
+        raise ValueError("Matrix A is not square")
+
+    lamb = np.zeros(left, dtype=np.float64)
+
+    if x0 is None:
+        x = np.zeros((mep, n), dtype=np.float64)
+    else:
+        assert x0.shape == (mep, n)
+        x = x0
+
+    ldx = n
+
+    try:
+        while True:
+            spral_ssmfe_generalized_double(&rci,
+                                           _left,
+                                           _mep,
+                                           &lamb[0],
+                                           n,
+                                           &x[0, 0],
+                                           ldx,
+                                           &keep,
+                                           &options.options,
+                                           &inform)
+
+            if rci.job == -3:
+                # Fatal error
+                raise ValueError("Fatal error")
+            elif rci.job == -2:
+                # Error, restart?
+                raise ValueError("Error occurred during computation")
+            elif rci.job == -1:
+                # Computation complete
+                break
+            elif rci.job == 1:
+                # Compute Y = AX
+                xv = np.asarray(<double[:rci.nx, :n]> rci.x)
+                yv = np.asarray(<double[:rci.nx, :n]> rci.y)
+                yv[:] = (A @ xv.T).T
+            elif rci.job == 2:
+                # Apply precond Y = TX
+                xv = np.asarray(<double[:rci.nx, :n]> rci.x)
+                yv = np.asarray(<double[:rci.nx, :n]> rci.y)
+
+                if P is None:
+                    yv[:] = xv
+                else:
+                    yv[:] = (P @ xv.T).T
+                continue
+
+            elif rci.job == 3:
+                # Compute Y = BX
+                xv = np.asarray(<double[:rci.nx, :n]> rci.x)
+                yv = np.asarray(<double[:rci.nx, :n]> rci.y)
+
+                yv[:] = (B @ xv.T).T
+            else:
+                raise ValueError("Invalid job")
+    finally:
+        spral_ssmfe_free_double(&keep, &inform)
+
+    num_eigenpairs = inform.left
+
+    props = {
+        'iteration': inform.iteration,
+        'next_left': inform.next_left,
+    }
+
+    if num_eigenpairs > 0:
+        lambv = np.asarray(lamb[:num_eigenpairs])
+        xv = np.asarray(x[:num_eigenpairs, :]).T
+    else:
+        lambv = np.empty(shape=(0,), dtype=np.float64)
+        xv = np.empty(shape=(n, 0), dtype=np.float64)
+
+    return Result(lambv, xv, **props)
+
+
+def solve_generalized(A: sp.sparse.linalg.LinearOperator,
+                      B: sp.sparse.linalg.LinearOperator,
+                      left: int,
+                      mep: int,
+                      P: Optional[sp.sparse.linalg.LinearOperator] = None,
+                      x0: double[:,::1]=None,
+                      **options):
+    cdef Options opts = Options(**options)
+    return _solve_generalized(A, B, left, mep, opts, P, x0)
+
 
 cpdef solve_buckling():
     raise NotImplementedError()
