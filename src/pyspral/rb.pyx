@@ -226,9 +226,9 @@ def _peek(str filename):
     cdef int m, n
     cdef int64_t nelt, nvar, nval
     cdef spral_matrix_type matrix_type
-    cdef char type_code[3]
-    cdef char title[72]
-    cdef char identifier[8]
+    cdef char type_code[4]
+    cdef char title[73]
+    cdef char identifier[9]
     cdef int return_code
     cdef bytes _filename = filename.encode('ascii')
     cdef const char* fname = _filename
@@ -336,8 +336,8 @@ def _read(str filename, ReadOptions options, int random_state=0):
     cdef int* ptr
     cdef int* row
     cdef double* val
-    cdef char title[72]
-    cdef char identifier[8]
+    cdef char title[73]
+    cdef char identifier[9]
     cdef int inform
 
     cdef int[:] row_view
