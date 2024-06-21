@@ -6,7 +6,14 @@ from Cython.Build import cythonize
 import numpy as np
 
 
-modules = ["csc", "ssids", "lsmr", "ssmfe", "rb", "scaling"]
+modules = ["csc",
+           "lsmr",
+           "random_matrix",
+           "rb",
+           "scaling",
+           "ssids",
+           "ssmfe",
+           "types"]
 
 
 extensions = [
