@@ -7,6 +7,9 @@ cimport numpy as np
 import numpy as np
 import scipy as sp
 
+from .types cimport spral_matrix_type
+from .types import MatrixType
+
 
 cdef extern from "spral.h":
 
@@ -20,21 +23,6 @@ cdef extern from "spral.h":
     struct spral_rb_write_options:
        int array_base
        char val_format[21]
-
-    enum spral_matrix_type:
-        SPRAL_MATRIX_UNSPECIFIED = 0
-        SPRAL_MATRIX_REAL_RECT = 1
-        SPRAL_MATRIX_CPLX_RECT = -1
-        SPRAL_MATRIX_REAL_UNSYM = 2
-        SPRAL_MATRIX_CPLX_UNSYM = -2
-        SPRAL_MATRIX_REAL_SYM_PSDEF = 3
-        SPRAL_MATRIX_CPLX_HERM_PSDEF = -3
-        SPRAL_MATRIX_REAL_SYM_INDEF = 4
-        SPRAL_MATRIX_CPLX_HERM_INDEF = -4
-        SPRAL_MATRIX_CPLX_SYM = -5
-        SPRAL_MATRIX_REAL_SKEW = 6
-        SPRAL_MATRIX_CPLX_SKEW = -6
-
 
     void spral_rb_default_read_options(spral_rb_read_options *options)
     void spral_rb_default_write_options(spral_rb_write_options *options)
@@ -156,21 +144,6 @@ class ReadError(Exception):
 #     Hermitian = 'h'
 #     SkewSymm = 'z'
 #     Rectangular = 'r'
-
-
-class MatrixType(Enum):
-    Unspecified = 0
-    RealRect = 1
-    ComplexRect = -1
-    RealUnsymm = 2
-    ComplexUnsymm = -2
-    RealSymmPsdef = 3
-    ComplexHermPsdef = -3
-    RealSymmIndef = 4
-    ComplexHermIndef = -4
-    ComplexSymm = -5
-    RealSkew = 6
-    ComplexSkew = -6
 
 
 # class MatrixEncoding(Enum):

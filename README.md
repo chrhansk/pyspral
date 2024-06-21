@@ -12,7 +12,7 @@
 
 So far, the following packages are supported:
 
-- `RANDOM_MATRIX`: No
+- `RANDOM_MATRIX`: Yes
 - `SCALING`: Yes
 - `RUTHERFORD-BOEING`: Yes
 - `SSIDS`: Yes
