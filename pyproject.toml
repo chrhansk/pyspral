@@ -1,6 +1,6 @@
 [project]
 name = "pyspral"
-version = "0.1.4"
+version = "0.1.5"
 authors = [
   {name = "Christoph Hansknecht", email = "christoph.hansknecht@tu-clausthal.de"}
 ]
