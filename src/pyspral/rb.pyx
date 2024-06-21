@@ -12,6 +12,7 @@ from .types import MatrixType
 
 
 cdef extern from "spral.h":
+    int SPRAL_RANDOM_INITIAL_SEED
 
     struct spral_rb_read_options:
        int array_base
@@ -300,7 +301,7 @@ cdef class Matrix:
                       matrix_type)
 
 
-def _read(str filename, ReadOptions options, int random_state=0):
+def _read(str filename, ReadOptions options, int random_state):
     cdef int m, n
     cdef bytes _filename = filename.encode('ascii')
     cdef const char* fname = _filename
@@ -361,10 +362,14 @@ def _read(str filename, ReadOptions options, int random_state=0):
         spral_rb_free_handle(&handle)
 
 
-def read(filename, random_state = 0, **options):
+def read(filename, random_state=None, **options):
     cdef ReadOptions read_options = ReadOptions(**options)
+    cdef int rand_state = SPRAL_RANDOM_INITIAL_SEED
 
-    return _read(str(filename), read_options, random_state)
+    if random_state is not None:
+        rand_state = random_state
+
+    return _read(str(filename), read_options, rand_state)
 
 
 def _write(str filename, Matrix matrix, WriteOptions options):

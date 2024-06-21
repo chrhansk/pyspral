@@ -12,6 +12,8 @@ from .types import MatrixType
 
 
 cdef extern from "spral.h":
+    int SPRAL_RANDOM_INITIAL_SEED
+
     int spral_random_matrix_generate(int *state,
                                      spral_matrix_type matrix_type,
                                      int m,
@@ -66,7 +68,7 @@ def random_matrix_generate(m,
                            nnz,
                            matrix_type,
                            bint nonsingular=False,
-                           int random_state=0):
+                           random_state=None):
 
     if nnz <= 0:
         raise ValueError("Invalid number of nonzero values provided")
@@ -81,6 +83,10 @@ def random_matrix_generate(m,
     cdef int result
     cdef int flag
     cdef spral_matrix_type mat_type = matrix_type.value
+    cdef int rand_state = SPRAL_RANDOM_INITIAL_SEED
+
+    if random_state is not None:
+        rand_state = random_state
 
     flags = MatrixFlags.SORTED
 
@@ -89,7 +95,7 @@ def random_matrix_generate(m,
 
     flag = flags.value
 
-    result = spral_random_matrix_generate(&random_state,
+    result = spral_random_matrix_generate(&rand_state,
                                           mat_type,
                                           m,
                                           n,
